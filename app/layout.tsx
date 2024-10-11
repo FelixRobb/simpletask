@@ -1,14 +1,12 @@
-import { Providers } from './providers'
+// app/layout.tsx
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+import { ThemeProvider } from './ThemeProvider'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   )
