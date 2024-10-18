@@ -1,40 +1,23 @@
-"use client";
-
+"use client"
 import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
   Container,
-  Flex,
-  FormControl,
-  FormLabel,
   Heading,
-  HStack,
-  IconButton,
-  Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Select,
-  Text,
-  Textarea,
   VStack,
-  Badge,
   useDisclosure,
-  useColorMode,
   useToast,
+  useColorMode,
+  IconButton,
+  Flex,
+  Text,
+  Spacer,
 } from "@chakra-ui/react";
-import {
-  AddIcon,
-  DeleteIcon,
-  EditIcon,
-  MoonIcon,
-  SunIcon,
-} from "@chakra-ui/icons";
+import { AddIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
+import TaskItem from "./components/TaskItem";
+import TaskModal from "./components/TaskModal";
+import TaskDetailsModal from "./components/TaskDetailsModal";
 
 interface Task {
   id: number;
@@ -49,569 +32,310 @@ interface Task {
   completed: boolean;
 }
 
+const isLocalStorageAvailable = () => {
+  try {
+    const testKey = "__test__";
+    localStorage.setItem(testKey, testKey);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [doneTasks, setDoneTasks] = useState<Task[]>([]);
-  const [newTask, setNewTask] = useState<Omit<Task, "id" | "completed">>({
-    title: "",
-    description: "",
-    dueDate: "",
-    timeOfDay: "",
-    location: "",
-    priority: "Medium",
-    category: "Personal",
-    recurrence: undefined,
-  });
-
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const {
-    isOpen: isEditOpen,
-    onOpen: onEditOpen,
-    onClose: onEditClose,
-  } = useDisclosure();
-  const toast = useToast();
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const { isOpen: isTaskModalOpen, onOpen: onTaskModalOpen, onClose: onTaskModalClose } = useDisclosure();
+  const { isOpen: isDetailsModalOpen, onOpen: onDetailsModalOpen, onClose: onDetailsModalClose } = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
-
-  // Load tasks from localStorage
-  useEffect(() => {
-    const savedTasks = localStorage.getItem("tasks");
-    const savedDoneTasks = localStorage.getItem("doneTasks");
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
-    if (savedDoneTasks) setDoneTasks(JSON.parse(savedDoneTasks));
-  }, []);
-
-  // Save tasks to localStorage
-  useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
+  const toast = useToast();
 
   useEffect(() => {
-    localStorage.setItem("doneTasks", JSON.stringify(doneTasks));
-  }, [doneTasks]);
+    const loadTasks = () => {
+      if (isLocalStorageAvailable()) {
+        const savedTasks = localStorage.getItem("tasks");
+        const savedDoneTasks = localStorage.getItem("doneTasks");
+        
+        if (savedTasks) {
+          const parsedTasks = JSON.parse(savedTasks);
+          setTasks(parsedTasks);
+        }
+        
+        if (savedDoneTasks) {
+          const parsedDoneTasks = JSON.parse(savedDoneTasks);
+          setDoneTasks(parsedDoneTasks);
+        }
+      } else {
+        console.error("localStorage is not available");
+        toast({
+          title: "Storage Error",
+          description: "Unable to access local storage. Your tasks may not be saved.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+  
+    loadTasks();
+  }, [toast]);
+  
+  useEffect(() => {
+    const saveTasks = () => {
+      if (isLocalStorageAvailable()) {
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        localStorage.setItem("doneTasks", JSON.stringify(doneTasks));
+      }
+    };
 
-  const addTask = () => {
+    if (tasks.length > 0 || doneTasks.length > 0) {
+      saveTasks();
+    }
+  }, [tasks, doneTasks]);
+
+  const addTask = (newTask: Omit<Task, "id" | "completed">) => {
     const newTaskWithId = { ...newTask, id: Date.now(), completed: false };
     setTasks((prevTasks) => [...prevTasks, newTaskWithId]);
-    resetNewTask();
-    onClose();
     toast({
       title: "Task added successfully",
       status: "success",
-      duration: 5000,
+      duration: 3000,
       isClosable: true,
     });
   };
 
-  const resetNewTask = () => {
-    setNewTask({
-      title: "",
-      description: "",
-      dueDate: "",
-      timeOfDay: "",
-      location: "",
-      priority: "Medium",
-      category: "Personal",
-      recurrence: undefined,
+  const editTask = (updatedTask: Task) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+    );
+    setDoneTasks((prevDoneTasks) =>
+      prevDoneTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+    );
+    toast({
+      title: "Task updated",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
     });
   };
 
-  const startEditTask = (task: Task) => {
-    setEditingTask({ ...task });
-    onEditOpen();
-  };
-
-  const saveEditTask = () => {
-    if (editingTask) {
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === editingTask.id ? editingTask : task
-        )
-      );
-      setEditingTask(null);
-      onEditClose();
-      toast({
-        title: "Task edited successfully",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+  const markTaskAsDone = (taskId: number) => {
+    const taskToMove = tasks.find((task) => task.id === taskId);
+    if (taskToMove) {
+      setDoneTasks((prevDoneTasks) => [...prevDoneTasks, { ...taskToMove, completed: true }]);
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
     }
+    setTasks((prevTasks) => {
+      const taskToMove = prevTasks.find((task) => task.id === taskId);
+      if (taskToMove) {
+        setDoneTasks((prevDoneTasks) => [...prevDoneTasks, { ...taskToMove, completed: true }]);
+      }
+      return prevTasks.filter((task) => task.id !== taskId);
+    });
+    
+    toast({
+      title: "Task marked as done",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
-  const deleteTask = (id: number) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+  const recoverTask = (taskId: number) => {
+    setDoneTasks((prevDoneTasks) => {
+      const taskToRecover = prevDoneTasks.find((task) => task.id === taskId);
+      if (taskToRecover) {
+        const currentDate = new Date();
+        const taskDate = taskToRecover.dueDate ? new Date(taskToRecover.dueDate) : null;
+        if (taskDate && taskDate < currentDate) {
+          toast({
+            title: "Cannot recover task with past date",
+            description: "Please edit the task date before recovering.",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return prevDoneTasks;
+        }
+        setTasks((prevTasks) => {
+          const existingTask = prevTasks.find((task) => task.id === taskId);
+          if (!existingTask) {
+            return [...prevTasks, { ...taskToRecover, completed: false }];
+          }
+          return prevTasks;
+        });
+        setTasks((prevTasks) => [...prevTasks, { ...taskToRecover, completed: false }]);
+        return prevDoneTasks.filter((task) => task.id !== taskId);
+      }
+      return prevDoneTasks;
+    });
+    
+    toast({
+      title: "Task recovered",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const deleteTask = (taskId: number) => {
+    setTasks((prevTasks) => {
+      const updatedTasks = prevTasks.filter((task) => task.id !== taskId);
+      
+      // Save the updated tasks to localStorage
+      if (isLocalStorageAvailable()) {
+        localStorage.setItem("tasks", JSON.stringify(updatedTasks));
+      }
+      
+      return updatedTasks;
+    });
+  
+    setDoneTasks((prevDoneTasks) => {
+      const updatedDoneTasks = prevDoneTasks.filter((task) => task.id !== taskId);
+      
+      // Save the updated done tasks to localStorage
+      if (isLocalStorageAvailable()) {
+        localStorage.setItem("doneTasks", JSON.stringify(updatedDoneTasks));
+      }
+      
+      return updatedDoneTasks;
+    });
+  
     toast({
       title: "Task deleted",
-      status: "info",
-      duration: 5000,
+      status: "warning",
+      duration: 3000,
       isClosable: true,
     });
   };
+  
 
-  const markAsDone = (id: number) => {
-    const completedTask = tasks.find((task) => task.id === id);
-    if (completedTask) {
-      completedTask.completed = true;
-      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
-      setDoneTasks((prevTasks) => [...prevTasks, completedTask]);
-      toast({
-        title: "Task marked as done",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    onDetailsModalOpen();
+  };
+
+  const handleEditClick = () => {
+    setEditingTask(selectedTask);
+    onDetailsModalClose();
+    onTaskModalOpen();
+  };
+
+  const handleDoneClick = () => {
+    if (selectedTask) {
+      if (selectedTask.completed) {
+        recoverTask(selectedTask.id);
+      } else {
+        markTaskAsDone(selectedTask.id);
+      }
     }
+    onDetailsModalClose();
   };
 
-  const recoverTask = (id: number) => {
-    const taskToRecover = doneTasks.find((task) => task.id === id);
-    if (taskToRecover) {
-      setDoneTasks((prev) => prev.filter((task) => task.id !== id));
-      setTasks((prevTasks) => [...prevTasks, taskToRecover]);
-      toast({
-        title: "Task recovered",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+  const handleDeleteClick = () => {
+    if (selectedTask) {
+      deleteTask(selectedTask.id);
     }
-  };
-
-  const getUrgentTasks = () => {
-    const now = new Date();
-    return tasks.filter(
-      (task) =>
-        task.priority === "High" &&
-        !task.completed &&
-        task.dueDate &&
-        new Date(task.dueDate) <= new Date(now.setHours(now.getHours() + 3))
-    );
-  };
-
-  const organizeTasks = () => {
-    return [...tasks].sort((a, b) => {
-      if (!a.dueDate && b.dueDate) return 1;
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && !b.dueDate) return 0;
-      return (
-        new Date(a.dueDate || "").getTime() -
-        new Date(b.dueDate || "").getTime()
-      );
-    });
+    onDetailsModalClose();
   };
 
   return (
-    <Box minHeight="100vh" bg={colorMode === "light" ? "gray.100" : "gray.800"}>
-      <Container maxW="7xl" py={8}>
-        <Button leftIcon={<AddIcon />} onClick={onOpen} mb={8}>
-          Add Task
-        </Button>
+    <Box
+      minHeight="100vh"
+      bg={colorMode === "dark" ? "gray.900" : "gray.50"}
+      color={colorMode === "dark" ? "white" : "black"}
+    >
+      <Container maxW="container.xl" py={8}>
+        <Flex as="header" alignItems="center" mb={8}>
+          <Heading as="h1" size="2xl">Task Manager</Heading>
+          <Spacer />
+          <IconButton
+            aria-label="Toggle color mode"
+            icon={colorMode === "dark" ? <SunIcon /> : <MoonIcon />}
+            onClick={toggleColorMode}
+            size="lg"
+            variant="ghost"
+            mr={4}
+          />
+          <Button
+            leftIcon={<AddIcon />}
+            onClick={onTaskModalOpen}
+            colorScheme="blue"
+            size="lg"
+          >
+            Add Task
+          </Button>
+        </Flex>
 
-        {/* Modal for Adding Task */}
-        <Modal isOpen={isOpen} onClose={onClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Add New Task</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel htmlFor="title">Title</FormLabel>
-                  <Input
-                    id="title"
-                    value={newTask.title}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, title: e.target.value })
-                    }
-                    placeholder="Task title"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="description">Description</FormLabel>
-                  <Textarea
-                    id="description"
-                    value={newTask.description}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, description: e.target.value })
-                    }
-                    placeholder="Task description"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="dueDate">Due Date</FormLabel>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={newTask.dueDate}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, dueDate: e.target.value })
-                    }
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="timeOfDay">Time of Day</FormLabel>
-                  <Input
-                    id="timeOfDay"
-                    type="time"
-                    value={newTask.timeOfDay}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, timeOfDay: e.target.value })
-                    }
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="location">Location</FormLabel>
-                  <Input
-                    id="location"
-                    value={newTask.location}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, location: e.target.value })
-                    }
-                    placeholder="Task location"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="priority">Priority</FormLabel>
-                  <Select
-                    id="priority"
-                    value={newTask.priority}
-                    onChange={(e) => {
-                      const value = e.target.value as "Low" | "Medium" | "High";
-                      setNewTask({ ...newTask, priority: value });
-                    }}
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="category">Category</FormLabel>
-                  <Select
-                    id="category"
-                    value={newTask.category}
-                    onChange={(e) => {
-                      const value = e.target.value as
-                        | "Work"
-                        | "Personal"
-                        | "Errands";
-                      setNewTask({ ...newTask, category: value });
-                    }}
-                  >
-                    <option value="Work">Work</option>
-                    <option value="Personal">Personal</option>
-                    <option value="Errands">Errands</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="recurrence">Recurrence</FormLabel>
-                  <Select
-                    id="recurrence"
-                    value={newTask.recurrence || ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setNewTask({
-                        ...newTask,
-                        recurrence:
-                          value === ""
-                            ? undefined
-                            : (value as "Daily" | "Weekly" | "Monthly"),
-                      });
-                    }}
-                  >
-                    <option value="">None</option>
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="Monthly">Monthly</option>
-                  </Select>
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button colorScheme="blue" onClick={addTask}>
-                Add Task
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        {/* Task Lists */}
-        <Heading size="lg" mb={4}>
-          Urgent Tasks
-        </Heading>
-        {getUrgentTasks().length > 0 ? (
-          <VStack spacing={4} align="start">
-            {getUrgentTasks().map((task) => (
+        <Box
+          borderRadius="xl"
+          overflow="hidden"
+          bg={colorMode === "dark" ? "rgba(26, 32, 44, 0.8)" : "rgba(255, 255, 255, 0.8)"}
+          boxShadow="xl"
+          backdropFilter="blur(10px)"
+          p={6}
+        >
+          <Text fontSize="2xl" fontWeight="bold" mb={4}>Active Tasks</Text>
+          <VStack spacing={4} align="stretch">
+            {tasks.map((task) => (
               <TaskItem
                 key={task.id}
                 task={task}
-                markAsDone={markAsDone}
-                startEditTask={startEditTask}
-                deleteTask={deleteTask}
+                onClick={() => handleTaskClick(task)}
               />
             ))}
           </VStack>
-        ) : (
-          <Text>No urgent tasks.</Text>
-        )}
+        </Box>
 
-        <Heading size="lg" my={8}>
-          All Tasks
-        </Heading>
-        <VStack spacing={4} align="start">
-          {organizeTasks().map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              markAsDone={markAsDone}
-              startEditTask={startEditTask}
-              deleteTask={deleteTask}
-            />
-          ))}
-        </VStack>
-
-        <Heading size="lg" my={8}>
-          Done Tasks
-        </Heading>
-        <VStack spacing={4} align="start">
-          {doneTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              markAsDone={recoverTask}
-              startEditTask={startEditTask}
-              deleteTask={deleteTask}
-              isDoneList
-            />
-          ))}
-        </VStack>
-
-        {/* Modal for Editing Task */}
-        <Modal isOpen={isEditOpen} onClose={onEditClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Edit Task</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel htmlFor="editTitle">Title</FormLabel>
-                  <Input
-                    id="editTitle"
-                    value={editingTask?.title || ""}
-                    onChange={(e) =>
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        title: e.target.value,
-                      }))
-                    }
-                    placeholder="Task title"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editDescription">Description</FormLabel>
-                  <Textarea
-                    id="editDescription"
-                    value={editingTask?.description || ""}
-                    onChange={(e) =>
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        description: e.target.value,
-                      }))
-                    }
-                    placeholder="Task description"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editDueDate">Due Date</FormLabel>
-                  <Input
-                    id="editDueDate"
-                    type="date"
-                    value={editingTask?.dueDate || ""}
-                    onChange={(e) =>
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        dueDate: e.target.value,
-                      }))
-                    }
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editTimeOfDay">Time of Day</FormLabel>
-                  <Input
-                    id="editTimeOfDay"
-                    type="time"
-                    value={editingTask?.timeOfDay || ""}
-                    onChange={(e) =>
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        timeOfDay: e.target.value,
-                      }))
-                    }
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editLocation">Location</FormLabel>
-                  <Input
-                    id="editLocation"
-                    value={editingTask?.location || ""}
-                    onChange={(e) =>
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        location: e.target.value,
-                      }))
-                    }
-                    placeholder="Task location"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editPriority">Priority</FormLabel>
-                  <Select
-                    id="editPriority"
-                    value={editingTask?.priority || "Medium"}
-                    onChange={(e) => {
-                      const value = e.target.value as "Low" | "Medium" | "High";
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        priority: value,
-                      }));
-                    }}
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editCategory">Category</FormLabel>
-                  <Select
-                    id="editCategory"
-                    value={editingTask?.category || "Personal"}
-                    onChange={(e) => {
-                      const value = e.target.value as
-                        | "Work"
-                        | "Personal"
-                        | "Errands";
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        category: value,
-                      }));
-                    }}
-                  >
-                    <option value="Work">Work</option>
-                    <option value="Personal">Personal</option>
-                    <option value="Errands">Errands</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="editRecurrence">Recurrence</FormLabel>
-                  <Select
-                    id="editRecurrence"
-                    value={editingTask?.recurrence || ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setEditingTask((prevTask) => ({
-                        ...prevTask!,
-                        recurrence:
-                          value === ""
-                            ? undefined
-                            : (value as "Daily" | "Weekly" | "Monthly"),
-                      }));
-                    }}
-                  >
-                    <option value="">None</option>
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="Monthly">Monthly</option>
-                  </Select>
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button colorScheme="blue" onClick={saveEditTask}>
-                Save Task
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+        <Box
+          borderRadius="xl"
+          overflow="hidden"
+          bg={colorMode === "dark" ? "rgba(26, 32, 44, 0.8)" : "rgba(255, 255, 255, 0.8)"}
+          boxShadow="xl"
+          backdropFilter="blur(10px)"
+          p={6}
+          mt={8}
+        >
+          <Text fontSize="2xl" fontWeight="bold" mb={4}>Completed Tasks</Text>
+          <VStack spacing={4} align="stretch">
+            {doneTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onClick={() => handleTaskClick(task)}
+              />
+            ))}
+          </VStack>
+        </Box>
       </Container>
-      <IconButton
-        position="fixed"
-        bottom={4}
-        right={4}
-        aria-label="Toggle Theme"
-        icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
-        onClick={toggleColorMode}
+
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => {
+          onTaskModalClose();
+          setEditingTask(null);
+        }}
+        onSave={(task) => {
+          editingTask ? editTask(task) : addTask(task);
+          onTaskModalClose();
+          setEditingTask(null);
+        }}
+        task={editingTask}
       />
+
+      {selectedTask && (
+        <TaskDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={onDetailsModalClose}
+          task={selectedTask}
+          onEdit={handleEditClick}
+          onDone={handleDoneClick}
+          onDelete={handleDeleteClick}
+        />
+      )}
     </Box>
   );
 }
-
-// Component for Task Item
-const TaskItem = ({
-  task,
-  markAsDone,
-  startEditTask,
-  deleteTask,
-  isDoneList = false,
-}: {
-  task: Task;
-  markAsDone: (id: number) => void;
-  startEditTask: (task: Task) => void;
-  deleteTask: (id: number) => void;
-  isDoneList?: boolean;
-}) => {
-  return (
-    <Flex
-      p={4}
-      bg="white"
-      borderRadius="md"
-      boxShadow="sm"
-      justify="space-between"
-      align="center"
-      w="full"
-    >
-      <Box>
-        <Text fontSize="lg" fontWeight="bold">
-          {task.title}{" "}
-          {task.priority === "High" && <Badge colorScheme="red">Urgent</Badge>}
-        </Text>
-        {task.dueDate && (
-          <Text>
-            Due: {task.dueDate} {task.timeOfDay && `at ${task.timeOfDay}`}
-          </Text>
-        )}
-        {task.description && <Text>Description: {task.description}</Text>}
-        {task.location && <Text>Location: {task.location}</Text>}
-      </Box>
-      <HStack spacing={2}>
-        {!isDoneList ? (
-          <>
-            <IconButton
-              aria-label="Mark as Done"
-              icon={<AddIcon />}
-              onClick={() => markAsDone(task.id)}
-            />
-            <IconButton
-              aria-label="Edit Task"
-              icon={<EditIcon />}
-              onClick={() => startEditTask(task)}
-            />
-          </>
-        ) : (
-          <IconButton
-            aria-label="Recover Task"
-            icon={<AddIcon />}
-            onClick={() => markAsDone(task.id)}
-          />
-        )}
-        <IconButton
-          aria-label="Delete Task"
-          icon={<DeleteIcon />}
-          onClick={() => deleteTask(task.id)}
-        />
-      </HStack>
-    </Flex>
-  );
-};

@@ -1,27 +1,48 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background-color: #1e1e1e;
+  --foreground-color: #282828;
+  --text-color: #f0f0f0;
+  --primary-color: #bb86fc;
+  --card-bg: rgba(40, 40, 40, 0.8); /* Para o efeito glassmorphism */
+  --shadow-color: rgba(0, 0, 0, 0.2);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: 'Roboto', sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+
+.card {
+  background: var(--card-bg);
+  border-radius: 15px;
+  box-shadow: 0 4px 30px var(--shadow-color);
+  backdrop-filter: blur(10px); /* Para o efeito glassmorphism */
+  padding: 20px;
+  margin: 20px;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px var(--shadow-color);
+  transition: transform 0.3s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px var(--shadow-color);
+}
+
+.glass {
+  background: var(--card-bg);
+  box-shadow: 0 8px 32px var(--shadow-color);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
