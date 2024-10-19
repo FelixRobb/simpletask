@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"
 import {
   Modal,
   ModalOverlay,
@@ -13,72 +13,79 @@ import {
   Input,
   Select,
   VStack,
-} from "@chakra-ui/react";
+} from "@chakra-ui/react"
 
 interface TaskModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (task: any) => void;
+  isOpen: boolean
+  onClose: () => void
+  onSave: (task: any) => void
   task?: {
-    id: number;
-    title: string;
-    description?: string;
-    dueDate?: string;
-    timeOfDay?: string;
-    location?: string;
-    priority: "Low" | "Medium" | "High";
-    category: "Work" | "Personal" | "Errands";
-    recurrence?: "Daily" | "Weekly" | "Monthly";
-    completed: boolean;
-  } | null;
+    id: number
+    title: string
+    description?: string
+    dueDate?: string
+    timeOfDay?: string
+    location?: string
+    priority: "Low" | "Medium" | "High"
+    category: "Work" | "Personal" | "Errands"
+    recurrence?: "Daily" | "Weekly" | "Monthly"
+    completed: boolean
+  } | null
+}
+
+const initialTaskState = {
+  title: "",
+  description: "",
+  dueDate: "",
+  timeOfDay: "",
+  location: "",
+  priority: "Medium",
+  category: "Work",
+  recurrence: "",
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) => {
-  const [title, setTitle] = useState(task?.title || "");
-  const [description, setDescription] = useState(task?.description || "");
-  const [dueDate, setDueDate] = useState(task?.dueDate || "");
-  const [timeOfDay, setTimeOfDay] = useState(task?.timeOfDay || "");
-  const [location, setLocation] = useState(task?.location || "");
-  const [priority, setPriority] = useState(task?.priority || "Medium");
-  const [category, setCategory] = useState(task?.category || "Work");
-  const [recurrence, setRecurrence] = useState(task?.recurrence || "");
+  const [formData, setFormData] = useState(initialTaskState)
 
   useEffect(() => {
     if (task) {
-      setTitle(task.title);
-      setDescription(task.description || "");
-      setDueDate(task.dueDate || "");
-      setTimeOfDay(task.timeOfDay || "");
-      setLocation(task.location || "");
-      setPriority(task.priority);
-      setCategory(task.category);
-      setRecurrence(task.recurrence || "");
+      setFormData({
+        title: task.title,
+        description: task.description || "",
+        dueDate: task.dueDate || "",
+        timeOfDay: task.timeOfDay || "",
+        location: task.location || "",
+        priority: task.priority,
+        category: task.category,
+        recurrence: task.recurrence || "",
+      })
+    } else {
+      setFormData(initialTaskState)
     }
-  }, [task]);
+  }, [task, isOpen])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleSave = () => {
-    const currentDate = new Date();
-    const selectedDate = dueDate ? new Date(dueDate) : null;
+    const currentDate = new Date()
+    const selectedDate = formData.dueDate ? new Date(formData.dueDate) : null
     if (selectedDate && selectedDate < currentDate) {
-      alert("The selected date is in the past. Please choose a future date.");
-      return;
+      alert("The selected date is in the past. Please choose a future date.")
+      return
     }
 
     onSave({
       id: task?.id || Date.now(),
-      title,
-      description,
-      dueDate,
-      timeOfDay,
-      location,
-      priority,
-      category,
-      recurrence,
+      ...formData,
       completed: task?.completed || false,
-    });
-  };
+    })
+    setFormData(initialTaskState)
+  }
 
-  return (
+  return  (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalOverlay />
       <ModalContent>
@@ -89,8 +96,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
             <FormControl id="title" isRequired>
               <FormLabel>Title</FormLabel>
               <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
                 placeholder="Task title"
               />
             </FormControl>
@@ -98,8 +106,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
             <FormControl id="description">
               <FormLabel>Description</FormLabel>
               <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
                 placeholder="Task description"
               />
             </FormControl>
@@ -107,26 +116,29 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
             <FormControl id="dueDate">
               <FormLabel>Due Date</FormLabel>
               <Input
+                name="dueDate"
                 type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                value={formData.dueDate}
+                onChange={handleChange}
               />
             </FormControl>
 
             <FormControl id="timeOfDay">
               <FormLabel>Time of Day</FormLabel>
               <Input
+                name="timeOfDay"
                 type="time"
-                value={timeOfDay}
-                onChange={(e) => setTimeOfDay(e.target.value)}
+                value={formData.timeOfDay}
+                onChange={handleChange}
               />
             </FormControl>
 
             <FormControl id="location">
               <FormLabel>Location</FormLabel>
               <Input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
                 placeholder="Task location"
               />
             </FormControl>
@@ -134,8 +146,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
             <FormControl id="priority">
               <FormLabel>Priority</FormLabel>
               <Select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as "Low" | "Medium" | "High")}
+                name="priority"
+                value={formData.priority}
+                onChange={handleChange}
               >
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
@@ -146,8 +159,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
             <FormControl id="category">
               <FormLabel>Category</FormLabel>
               <Select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as "Work" | "Personal" | "Errands")}
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
               >
                 <option value="Work">Work</option>
                 <option value="Personal">Personal</option>
@@ -158,8 +172,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
             <FormControl id="recurrence">
               <FormLabel>Recurrence</FormLabel>
               <Select
-                value={recurrence}
-                onChange={(e) => setRecurrence(e.target.value)}
+                name="recurrence"
+                value={formData.recurrence}
+                onChange={handleChange}
               >
                 <option value="">None</option>
                 <option value="Daily">Daily</option>
@@ -180,7 +195,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task }) 
         </ModalFooter>
       </ModalContent>
     </Modal>
-  );
-};
+  )
+}
 
-export default TaskModal;
+export default TaskModal
